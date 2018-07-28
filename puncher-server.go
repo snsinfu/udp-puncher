@@ -76,12 +76,15 @@ func start() error {
 			continue
 		}
 
-		log.Printf("%s: Login to %q", client, name)
+		site.nonce = m.Nonce + 1
+
+		r := site.key.Sign(nil, site.nonce)
+		if _, err := conn.WriteToUDP(r.Encode(), client); err != nil {
+			return err
+		}
 
 		site.clients[client.String()] = client
-		site.nonce = m.Nonce
-
-		log.Printf("%d clients in %q", len(site.clients), name)
+		log.Printf("%s: Login to %q / %d", client, name, len(site.clients))
 
 		if len(site.clients) == 2 {
 			addrs := []*net.UDPAddr{}
@@ -92,12 +95,12 @@ func start() error {
 
 			log.Printf("Pairing %s and %s", addrs[0], addrs[1])
 
-			nonce := site.nonce + 1
-
-			m0 := site.key.Sign([]byte(addrs[1].String()), nonce)
+			site.nonce++
+			m0 := site.key.Sign([]byte(addrs[1].String()), site.nonce)
 			conn.WriteToUDP(m0.Encode(), addrs[0])
 
-			m1 := site.key.Sign([]byte(addrs[0].String()), nonce)
+			site.nonce++
+			m1 := site.key.Sign([]byte(addrs[0].String()), site.nonce)
 			conn.WriteToUDP(m1.Encode(), addrs[1])
 		}
 	}

@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	nonceTimeWindow = 10
-	bufferSize      = 1472
+	bufferSize = 1472
 )
 
 func main() {
@@ -43,17 +42,32 @@ func start() error {
 	defer conn.Close()
 
 	myAddr := conn.LocalAddr().(*net.UDPAddr)
-	nonce := time.Now().Unix() / nonceTimeWindow
+	nonce := time.Now().Unix() * 10
 
 	login := key.Sign([]byte(site), nonce)
 	if _, err := conn.Write(login.Encode()); err != nil {
 		return err
 	}
 
-	// Pairing
 	buf := make([]byte, bufferSize)
 
 	n, err := conn.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	ack, err := mac.Decode(buf[:n])
+	if err != nil {
+		return err
+	}
+
+	if !key.Verify(ack) || ack.Nonce <= nonce {
+		return errors.New("invalid server response")
+	}
+	nonce = ack.Nonce
+
+	// Pairing
+	n, err = conn.Read(buf)
 	if err != nil {
 		return err
 	}
@@ -90,7 +104,8 @@ func start() error {
 	ping := [1]byte{0x80}
 	pong := [1]byte{0x81}
 
-	pingCh := make(chan bool)
+	punched := false
+	punchCh := make(chan bool)
 
 	go func() {
 		ticker := time.NewTicker(time.Second)
@@ -99,7 +114,7 @@ func start() error {
 			case <-ticker.C:
 				conn.WriteToUDP(ping[:], peerAddr)
 
-			case <-pingCh:
+			case <-punchCh:
 				conn.WriteToUDP(pong[:], peerAddr)
 				log.Print("Sent pong")
 				return
@@ -118,11 +133,16 @@ punchLoop:
 
 		switch buf {
 		case ping:
-			log.Print("Received ping")
-			pingCh <- true
+			if !punched {
+				close(punchCh)
+				punched = true
+			}
 
 		case pong:
-			log.Print("Received pong")
+			if !punched {
+				close(punchCh)
+				punched = true
+			}
 			break punchLoop
 
 		default:
@@ -130,8 +150,12 @@ punchLoop:
 	}
 
 	// Communication
-	conn.WriteToUDP([]byte("Hello"), peerAddr)
-	conn.WriteToUDP([]byte("See you"), peerAddr)
+	go func() {
+		time.Sleep(time.Second)
+		conn.WriteToUDP([]byte("Hello"), peerAddr)
+		conn.WriteToUDP([]byte("See you"), peerAddr)
+	}()
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 
 	for i := 0; i < 2; i++ {
 		n, err := conn.Read(buf)

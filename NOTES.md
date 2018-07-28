@@ -2,17 +2,28 @@
 
 A, B: clients, S: rendezvous server
 
-First A and B login to the server with a chosen name:
+A logs in to the server with a chosen name:
 
     A -> S:  hmac(nonce + name) + nonce + name
+
+The server responds to A with an empty message:
+
+    S -> A:  hmac(nonce) + nonce
+
+Later, B logs in to the server with the same name:
+
     B -> S:  hmac(nonce + name) + nonce + name
 
-Server pairs clients with the same name and sends peer's address to the clients:
+The server responds to B with an empty message:
+
+    S -> B:  hmac(nonce + name) + nonce
+
+Now the server pairs the two clients A and B:
 
     S -> A:  hmac(nonce + B) + nonce + B
     S -> B:  hmac(nonce + A) + nonce + A
 
-A and B send ping (0x80) messages to their peers to punch holes on NATs:
+And hole-punching starts between A and B:
 
     A -> B:  0x80
     A -> B:  0x80
@@ -22,7 +33,7 @@ A and B send ping (0x80) messages to their peers to punch holes on NATs:
     B -> A:  0x80
     ...
 
-A and B respond to ping by a pong (0x81) message:
+Upon receiving a ping, A (B) responds to B (A) by a pong message:
 
     A -> B:  0x81
     B -> A:  0x81
