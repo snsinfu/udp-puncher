@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/docopt/docopt-go"
+	"github.com/snsinfu/udp-puncher/server"
 )
 
 const usage = `
@@ -30,5 +31,5 @@ func run() error {
 		fmt.Printf("%s\t%v\n", name, value)
 	}
 
-	return nil
+	return server.Start()
 }

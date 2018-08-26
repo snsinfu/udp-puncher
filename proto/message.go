@@ -4,6 +4,7 @@ package proto
 const (
 	TagClientHello    = 0x00
 	TagServerHello    = 0x01
+	TagCookie         = 0x02
 	TagEntry          = 0x10
 	TagRendezvous     = 0x11
 	TagTunnelDatagram = 0x20
@@ -20,13 +21,18 @@ type ClientHello struct {
 }
 
 type ServerHello struct {
-	Random     []byte `msgpack:"salt"`
+	Random     []byte `msgpack:"random"`
 	ECDHPubkey []byte `msgpack:"ecdh_pubkey"`
+	SignPubkey []byte `msgpack:"sign_pubkey"`
 	Signature  []byte `msgpack:"signature"`
 }
 
+type Cookie struct {
+	Cookie []byte `msgpack:"cookie"`
+}
+
 type Entry struct {
-	PairingCode string `msgpack:"pairing_code"`
+	PairingCode []byte `msgpack:"pairing_code"`
 }
 
 type Rendezvous struct {
