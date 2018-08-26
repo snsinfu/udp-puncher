@@ -315,3 +315,65 @@ func TestCipher_Examples(t *testing.T) {
 		}
 	}
 }
+
+func TestAttachTag_PrependsTagToData(t *testing.T) {
+	data := []byte("Lorem ipsum dolor sit amet")
+	tag := byte(0xcc)
+
+	actual := AttachTag(data, tag)
+	expected := append([]byte{tag}, data...)
+
+	if !bytes.Equal(actual, expected) {
+		t.Errorf("unexpected message: got %q, want %q", actual, expected)
+	}
+}
+
+func TestDetachTag_DecodesAttachedDadaAndTag(t *testing.T) {
+	data := []byte("Lorem ipsum dolor sit amet")
+	tag := byte(0xcc)
+
+	msg := AttachTag(data, tag)
+	detachedData, detachedTag, err := DetachTag(msg)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if !bytes.Equal(detachedData, data) {
+		t.Errorf("unexpected data: got %q, want %q", detachedData, data)
+	}
+
+	if detachedTag != tag {
+		t.Errorf("unexpected tag: got 0x%02x, want 0x%02x", detachedTag, tag)
+	}
+}
+
+func TestDetachTag_RejectsEmptyMessage(t *testing.T) {
+	_, _, err := DetachTag(nil)
+
+	if err == nil {
+		t.Errorf("unexpected success")
+	} else if err != ErrInvalidMessage {
+		t.Errorf("unexpected error: %s", err)
+	}
+}
+
+func TestDetachTag_InspectsCiphertextMessageTag(t *testing.T) {
+	key := []byte("0123456789abcdefghijklmnopqrstuv")
+	iv := []byte("0123456789ab")
+
+	sealer, err := NewCipher(key, iv)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	data := []byte("Lorem ipsum dolor sit amet")
+	tag := byte(0xcc)
+
+	msg := sealer.Seal(data, tag)
+	_, detachedTag, _ := DetachTag(msg)
+
+	if detachedTag != tag {
+		t.Errorf("unexpected tag: got 0x%02x, want 0x%02x", detachedTag, tag)
+	}
+}

@@ -113,3 +113,18 @@ func (c *Cipher) Open(msg []byte) ([]byte, byte, error) {
 
 	return data, tag, nil
 }
+
+// AttachTag returns a plaintext message holding given data and tag.
+func AttachTag(data []byte, tag byte) []byte {
+	return append([]byte{tag}, data...)
+}
+
+// DetachTag returns data and tag encoded in msg. It returns ErrInvalidMessage
+// if msg is empty. This function can also be used to inspect the tag of a
+// message created by Cipher.
+func DetachTag(msg []byte) ([]byte, byte, error) {
+	if len(msg) == 0 {
+		return nil, 0, ErrInvalidMessage
+	}
+	return msg[1:], msg[0], nil
+}
