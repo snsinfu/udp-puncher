@@ -62,8 +62,7 @@ retryHello:
 		return err
 	}
 
-	msg = append([]byte{proto.TagClientHello}, msg...)
-
+	msg = proto.AttachTag(msg, proto.TagClientHello)
 	if _, err := conn.Write(msg); err != nil {
 		return err
 	}
@@ -80,9 +79,11 @@ retryHello:
 			return err
 		}
 
-		if buf[0] == proto.TagCookie {
+		data, tag, _ := proto.DetachTag(buf[:n])
+
+		if tag == proto.TagCookie {
 			var c proto.Cookie
-			if err := msgpack.Unmarshal(buf[1:n], &c); err != nil {
+			if err := msgpack.Unmarshal(data, &c); err != nil {
 				continue
 			}
 			cookie = c.Cookie
@@ -92,9 +93,9 @@ retryHello:
 			goto retryHello
 		}
 
-		if buf[0] == proto.TagServerHello {
+		if tag == proto.TagServerHello {
 			log.Print("ServerHello")
-			if err := msgpack.Unmarshal(buf[1:n], &serverHello); err != nil {
+			if err := msgpack.Unmarshal(data, &serverHello); err != nil {
 				continue
 			}
 			break

@@ -58,12 +58,13 @@ func Start() error {
 
 		sess, ok := sessions[clientID]
 		if !ok {
-			if buf[0] != proto.TagClientHello {
+			data, tag, _ := proto.DetachTag(buf[:n])
+			if tag != proto.TagClientHello {
 				continue
 			}
 
 			var hello proto.ClientHello
-			if err := msgpack.Unmarshal(buf[1:], &hello); err != nil {
+			if err := msgpack.Unmarshal(data, &hello); err != nil {
 				continue
 			}
 
@@ -84,10 +85,12 @@ func Start() error {
 				if err != nil {
 					return err
 				}
-				msg = append([]byte{proto.TagCookie}, msg...)
+
+				msg = proto.AttachTag(msg, proto.TagCookie)
 				if _, err := conn.WriteToUDP(msg, client); err != nil {
 					return err
 				}
+
 				continue
 			}
 
@@ -131,11 +134,13 @@ func (sess *session) main() error {
 
 	for {
 		msg := <-sess.recv
-		if msg[0] != proto.TagClientHello {
+
+		data, tag, _ := proto.DetachTag(msg)
+		if tag != proto.TagClientHello {
 			continue
 		}
 
-		if err := msgpack.Unmarshal(msg[1:], &clientHello); err != nil {
+		if err := msgpack.Unmarshal(data, &clientHello); err != nil {
 			return err
 		}
 
